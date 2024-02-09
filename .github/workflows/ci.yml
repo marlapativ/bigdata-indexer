@@ -1,0 +1,119 @@
+name: CI & CD Pipeline
+
+on:
+  push:
+    branches: 
+      - main
+
+  pull_request:
+    branches: 
+      - main
+      - a[0-9]                   # CI on a1-a9 assignment branches
+
+jobs:
+  build:
+    runs-on: ubuntu-latest     
+
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_DB: Cloud
+          POSTGRES_PASSWORD: cloud
+          POSTGRES_PORT: 5432
+          POSTGRES_USER: cloud
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 21.6.1
+        uses: actions/setup-node@v4
+        with:
+          node-version: 21.6.1
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint codebase
+        run: npm run lint
+
+      - name: Execute tests
+        run: npm test
+
+      - name: Build source code
+        run: npm run build
+
+      - name: Generate .env file            # Add variables as required
+        if: ${{ github.event_name == 'push' }}
+        run: echo "PORT=80" > dist/.env   
+      
+      - name: Archive production artifacts
+        if: ${{ github.event_name == 'push' }}
+        run: tar -czf webapp.tar.gz dist
+
+      - name: Upload Artifacts
+        if: ${{ github.event_name == 'push' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp
+          path: webapp.tar.gz
+          compression-level: 0
+          if-no-files-found: error
+          overwrite: true
+
+  # Temporarily disabling the job [Remove the false in 'if' condition]
+  deploy:
+    if: false
+    name: Deploy to Droplet [Dev]
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      SSH_USER: ${{ secrets.DROPLETUSER }}
+      SSH_KEY: ${{ secrets.DROPLETSSHKEY }}
+      SSH_HOST: ${{ secrets.DROPLETIP }}
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: webapp
+          path: .
+
+      - name: Initialize SSH Key
+        run: |
+          mkdir -p ~/.ssh/
+          echo "$SSH_KEY" > ~/.ssh/droplet.key
+          chmod 600 ~/.ssh/droplet.key
+          cat >>~/.ssh/config <<END
+          Host droplet
+            HostName $SSH_HOST
+            User $SSH_USER
+            IdentityFile ~/.ssh/droplet.key
+            StrictHostKeyChecking no
+          END
+
+          ssh-keyscan $SSH_HOST | tee -a ~/.ssh/known_hosts
+      
+      - name: Copy artifacts to Droplet
+        run: |
+          scp -i ~/.ssh/droplet.key webapp.tar.gz $SSH_USER@$SSH_HOST:/home/node
+
+      - name: Deploy to Droplet
+        run: |
+          ssh -i ~/.ssh/droplet.key $SSH_USER@$SSH_HOST "
+            pwd
+            rm -rf webapp
+            mkdir webapp
+            cd webapp
+            tar -xf ../webapp.tar.gz
+            cd dist
+            pm2 delete server || : && pm2 start server.js -i 1 --name 'server'
+          "
