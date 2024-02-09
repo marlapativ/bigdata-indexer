@@ -5,7 +5,7 @@ import planService from '../services/plan.service'
 const planController: Router = express.Router()
 
 planController
-  .route('/:planId')
+  .route('/:objectId')
   .get(planService.getPlanById)
   .put(planService.updatePlan)
   .delete(planService.deletePlan)

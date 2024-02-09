@@ -32,8 +32,12 @@ routes(app)
 
 // Express Server
 app.listen(port, async () => {
-  const result = await database.connect()
-  logger.info(`Database sync result: ${result}`)
+  try {
+    await database.connect()
+    logger.info(`Database connection established`)
+  } catch (error) {
+    logger.error(`Database connection error: ${error.message}`)
+  }
   logger.info(`Server listening on port ${port}`)
 })
 

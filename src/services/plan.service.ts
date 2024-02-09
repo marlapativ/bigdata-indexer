@@ -42,7 +42,7 @@ const createPlan = async (req: Request, res: Response) => {
   try {
     const plan = req.body as Plan
     if (!plan) {
-      res.status(400).json({ error: 'Missing plan' })
+      res.status(400).json({ error: 'Missing plan in body' })
       return
     }
     const result = await jsonParser.validate(plan, PlanModel)
@@ -66,16 +66,16 @@ const createPlan = async (req: Request, res: Response) => {
 
 const getPlanById = async (req: Request, res: Response) => {
   try {
-    const { planId } = req.params
-    if (!planId || planId === '' || planId === '{}') {
-      res.status(400).json({ error: 'Missing planId' })
+    const { objectId } = req.params
+    if (!objectId || objectId === '' || objectId === '{}') {
+      res.status(400).json({ error: 'Missing objectId' })
       return
     }
 
-    const redisKey = `${PlanModel.key}_${planId}`
+    const redisKey = `${PlanModel.key}_${objectId}`
     const keyExists = await doesKeyExist(redisKey)
     if (!keyExists) {
-      res.status(404).json({ error: `Plan id doesn't exist` })
+      res.status(404).json({ error: `Object id doesn't exist` })
       return
     }
 
@@ -88,7 +88,7 @@ const getPlanById = async (req: Request, res: Response) => {
     }
 
     const plan = await redisDatabase.get(redisKey)
-    if (!plan) throw new Error('Failed to retrieve plan from Redis')
+    if (!plan) throw new Error('Failed to retrieve object from Redis')
     res.status(200).setHeader('ETag', eTag!).json(JSON.parse(plan))
   } catch (error) {
     res.status(500).json({ error: error.message })
@@ -99,8 +99,27 @@ const updatePlan = async () => {
   throw new Error('Not implemented')
 }
 
-const deletePlan = async () => {
-  throw new Error('Not implemented')
+const deletePlan = async (req: Request, res: Response) => {
+  try {
+    const { objectId } = req.params
+    if (!objectId || objectId === '' || objectId === '{}') {
+      res.status(400).json({ error: 'Missing objectId' })
+      return
+    }
+
+    const redisKey = `${PlanModel.key}_${objectId}`
+    const keyExists = await doesKeyExist(redisKey)
+    if (!keyExists) {
+      res.status(404).json({ error: `Object id doesn't exist` })
+      return
+    }
+
+    const deleted = await redisDatabase.del(redisKey)
+    if (deleted === 0) throw new Error('Failed to delete object from Redis')
+    res.status(204).send()
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
 }
 
 const planService = {
