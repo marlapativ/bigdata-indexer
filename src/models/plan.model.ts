@@ -1,6 +1,5 @@
 import database from '../config/database'
 import { Model } from '../types/model'
-import { Plan } from '../types/plan.model';
 
 /*
 const PLAN_SCHEMA = 
@@ -255,7 +254,7 @@ MODIFIED PLAN SCHEMA
 */
 
 const PlanModel: Model = {
-  schema: database.getDatabaseConnection().get('PLAN_SCHEMA'),
+  schema: async () => await database.getDatabaseConnection().get('PLAN_SCHEMA'),
   key: 'PLAN'
 }
 
