@@ -16,10 +16,11 @@ class Database implements IDatabase {
       socket: {
         host: env.getOrDefault('REDIS_HOST', 'localhost'),
         port: parseInt(env.getOrDefault('REDIS_PORT', '6379'))
-      }
+      },
+      pingInterval: 2000
     })
     this._redis.on('error', (error) => {
-      logger.error(`Redis error: ${error}`)
+      logger.error(`Cannot connect to redis or redis error: ${error}`)
     })
   }
   connect = async (): Promise<RedisClientType> => {

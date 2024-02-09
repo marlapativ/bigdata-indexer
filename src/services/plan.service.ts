@@ -8,13 +8,19 @@ import eTag from 'etag'
 const redisDatabase = database.getDatabaseConnection()
 const ALL_VALUES = '*'
 const ETAG_CONSTANT = 'eTag'
+const ROOT_CONSTANT = 'ROOT'
+
+const trimDoubleQuotes = (str: string) => {
+  return str.replace(/^"(.*)"$/, '$1')
+}
 
 const savePlanToRedis = async (plan: Plan, redisKey: string): Promise<[Plan, string]> => {
   const stringifiedPlan = JSON.stringify(plan)
-  const etag = eTag(stringifiedPlan)
-  await redisDatabase.set(redisKey, stringifiedPlan)
+  const jsonEtag = eTag(stringifiedPlan)
+  const etag = trimDoubleQuotes(jsonEtag)
+  await redisDatabase.hSet(redisKey, ROOT_CONSTANT, stringifiedPlan)
   await redisDatabase.hSet(redisKey, ETAG_CONSTANT, etag)
-  const planFromRedis = await redisDatabase.get(redisKey)
+  const planFromRedis = await redisDatabase.hGet(redisKey, ROOT_CONSTANT)
   if (!planFromRedis) throw new Error('Failed to save plan to Redis')
   return [JSON.parse(planFromRedis), etag]
 }
@@ -26,12 +32,19 @@ const doesKeyExist = async (key: string) => {
 
 const getPlans = async (_: Request, res: Response) => {
   try {
-    const plans = await redisDatabase.hGetAll(PlanModel.key + '_' + ALL_VALUES)
-    if (!plans || Object.keys(plans).length === 0) {
-      res.status(404).json({ error: 'No plans found' })
+    const keys = await redisDatabase.keys(PlanModel.key + '_' + ALL_VALUES)
+    if (!keys || Object.keys(keys).length === 0) {
+      res.removeHeader('ETag')
+      res.status(204).json([])
       return
     }
-    const results = Object.values(plans).map((plan) => JSON.parse(plan))
+    const values = keys.map(async (eachKey): Promise<string | null> => {
+      const val = await redisDatabase.hGet(eachKey, ROOT_CONSTANT)
+      return val === undefined ? undefined : JSON.parse(val)
+    })
+    const data = await Promise.all(values)
+    const results = data.filter((each) => each !== null)
+    res.removeHeader('ETag')
     res.status(200).json(results)
   } catch (error) {
     res.status(500).json({ error: error.message })
@@ -47,7 +60,7 @@ const createPlan = async (req: Request, res: Response) => {
     }
     const result = await jsonParser.validate(plan, PlanModel)
     if (!result.ok) {
-      res.status(400).json({ error: 'Schema not valid: \n' + result.error.message })
+      res.status(400).json({ error: 'Schema not valid.', errors: result.error.messageObject })
       return
     }
     const redisKey = `${PlanModel.key}_${plan.objectId}`
@@ -87,7 +100,7 @@ const getPlanById = async (req: Request, res: Response) => {
       return
     }
 
-    const plan = await redisDatabase.get(redisKey)
+    const plan = await redisDatabase.hGet(redisKey, ROOT_CONSTANT)
     if (!plan) throw new Error('Failed to retrieve object from Redis')
     res.status(200).setHeader('ETag', eTag!).json(JSON.parse(plan))
   } catch (error) {

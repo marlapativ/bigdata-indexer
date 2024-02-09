@@ -1,22 +1,27 @@
 import ajv from 'ajv'
-import errors from '../utils/errors'
+import errors, { HttpStatusError } from '../utils/errors'
 import { Err, Ok, Result } from '../utils/result'
 import { Model } from '../types/model'
 
 const Ajv = new ajv({
-  allErrors: true
+  allErrors: true,
+  async: true
 })
 
-const validate = async (json: unknown, model: Model): Promise<Result<boolean, Error>> => {
-  const jsonSchema = await model.schema
-  if (!jsonSchema || JSON.parse(jsonSchema).length === 0) {
-    return Err(errors.validationError('Schema invalid or not found for key: ' + model.key))
+const validate = async (json: unknown, model: Model): Promise<Result<boolean, HttpStatusError>> => {
+  const jsonSchema = await model.schema()
+  let jsonSchemeObj: object
+  if (!jsonSchema) {
+    if (!model.fallbackSchema) return Err(errors.validationError('Schema invalid or not found for key: ' + model.key))
+    jsonSchemeObj = model.fallbackSchema
+  } else {
+    jsonSchemeObj = JSON.parse(jsonSchema)
   }
-  const validate = Ajv.compile(JSON.parse(jsonSchema))
-  const valid = validate(json)
+
+  const validate = Ajv.compile(jsonSchemeObj)
+  const valid = await validate(json)
   if (!valid) {
-    const allErrors = validate.errors!.map((error) => error.message!)
-    return Err(errors.validationError(allErrors))
+    return Err(errors.validationError(validate.errors))
   }
   return Ok(true)
 }
