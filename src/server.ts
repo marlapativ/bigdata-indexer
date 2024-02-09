@@ -32,7 +32,7 @@ routes(app)
 
 // Express Server
 app.listen(port, async () => {
-  const result = await database.syncDatabase()
+  const result = await database.connect()
   logger.info(`Database sync result: ${result}`)
   logger.info(`Server listening on port ${port}`)
 })

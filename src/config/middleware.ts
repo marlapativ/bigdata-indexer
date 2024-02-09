@@ -1,10 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
-import auth from 'basic-auth'
 import logger from './logger'
-import crypto from './crypto'
 import errors from '../utils/errors'
-import User from '../models/user.model'
-import { setUserIdInContext } from './context'
 import { handleResponse } from '../utils/response'
 import healthCheckService from '../services/healthcheck.service'
 
@@ -41,36 +37,6 @@ export const noQueryParams = () => {
       handleResponse(res, errors.validationError('Query parameters are not allowed'))
       return
     }
-    next()
-  }
-}
-
-export const authorized = () => {
-  return async (req: Request, res: Response, next: NextFunction) => {
-    logger.info('Checking if user is authorized')
-    const result = auth(req)
-    if (!result) {
-      logger.info('User is not authorized')
-      handleResponse(res, errors.unAuthorizedError())
-      return
-    }
-
-    const username = result.name
-    const user = await User.scope(['withPassword']).findOne({ where: { username } })
-    if (!user) {
-      logger.info(`Cannot find user. User: ${result!.name}`)
-      handleResponse(res, errors.unAuthorizedError())
-      return
-    }
-
-    const isPasswordMatch = await crypto.comparePassword(result!.pass, user!.password)
-    if (!isPasswordMatch) {
-      logger.info(`Password mismatch. User: ${result!.name}`)
-      handleResponse(res, errors.unAuthorizedError())
-      return
-    }
-
-    setUserIdInContext(user!.id)
     next()
   }
 }

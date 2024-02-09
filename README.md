@@ -1,8 +1,6 @@
-# CSYE6225 Web API Server
+# INFO-7255 Adv Big Data Indexing Techniques
 
-[![CI](https://github.com/marlapativ/webapp/actions/workflows/ci.yml/badge.svg)](https://github.com/marlapativ/webapp/actions/workflows/ci.yml)
-
-CSYE6225 Web API Server Implementation
+Adv Big Data Indexing Techniques Web API Implementation
 
 ---
 
@@ -101,29 +99,3 @@ To serve the node application using pm2, use the following command
 To automatically fix lint errors, use the following command
 
     npm run lint:fix
-
-## Database Commands - Additional info
-
-### Stop PostgreSQL database
-
-Login as admin user to access the directory
-
-    sudo su postgresql
-    pg_ctl stop -D {PATH_TO_POSTGRES_DATA}
-
-For Mac OS Users with non-brew installation
-
-    sudo su postgresql
-    cd /Library/PostgreSQL/16/bin/
-    pg_ctl stop -D ../data
-
-### Start PostgreSQL database
-
-    sudo su postgresql
-    pg_ctl start -D {PATH_TO_POSTGRES_DATA}
-
-For Mac OS Users with non-brew installation
-
-    sudo su postgresql
-    cd /Library/PostgreSQL/16/bin/
-    pg_ctl start -D ../data

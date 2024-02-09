@@ -6,14 +6,16 @@ export class HttpStatusError extends Error implements ResultError<HttpStatusErro
   ok: false
   error: this
   ignoreMessage: boolean
+  multipleMessages: string[] | null
 
-  constructor(message: string, statusCode: number, ignoreMessage: boolean = false) {
-    super(message)
+  constructor(message: string | string[], statusCode: number, ignoreMessage: boolean = false) {
+    super(message[0])
     this.statusCode = statusCode
     this.name = 'HttpStatusError'
     this.ok = false
     this.error = this
     this.ignoreMessage = ignoreMessage
+    this.multipleMessages = Array.isArray(message) ? message : null
   }
 }
 
@@ -23,7 +25,7 @@ const errors = {
   notFoundError: (message: string) => new HttpStatusError(message, StatusCodes.NOT_FOUND),
   internalServerError: (message: string) => new HttpStatusError(message, StatusCodes.INTERNAL_SERVER_ERROR),
   methodNotAllowedError: (message?: string) => new HttpStatusError(message ?? '', StatusCodes.METHOD_NOT_ALLOWED),
-  validationError: (message: string, ignoreMessage: boolean = false) =>
+  validationError: (message: string | string[], ignoreMessage: boolean = false) =>
     new HttpStatusError(message, StatusCodes.BAD_REQUEST, ignoreMessage)
 }
 

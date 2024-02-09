@@ -1,69 +1,38 @@
-import { Options, Sequelize } from 'sequelize'
-import * as pg from 'pg'
+import { RedisClientType, createClient } from 'redis'
 import env from './env'
 import logger from './logger'
 
 export interface IDatabase {
-  getDatabaseConnection(): Sequelize
-  closeDatabaseConnection(): Promise<void>
-  syncDatabase(): Promise<boolean>
-  updateConnectionString(connectionString?: string): void
+  connect(): Promise<RedisClientType>
+  getDatabaseConnection(): RedisClientType
+  closeDatabaseConnection(): Promise<string>
 }
 
 class Database implements IDatabase {
-  private _sequelize: Sequelize
-  private _options: Options | undefined = undefined
+  private _redis: RedisClientType
 
-  constructor() {
-    this.updateConnectionString()
+  public constructor() {
+    this._redis = createClient({
+      socket: {
+        host: env.getOrDefault('REDIS_HOST', 'localhost'),
+        port: parseInt(env.getOrDefault('REDIS_PORT', '6379'))
+      }
+    })
+    this._redis.on('error', (error) => {
+      logger.error(`Redis error: ${error}`)
+    })
+  }
+  connect = async (): Promise<RedisClientType> => {
+    return await this._redis.connect()
   }
 
-  async syncDatabase(): Promise<boolean> {
-    try {
-      await this._sequelize.authenticate()
-      await this._sequelize.sync()
-      return true
-    } catch (error) {
-      logger.error(`Error while syncing database. Error: ${error}`)
-      return false
-    }
+  getDatabaseConnection(): RedisClientType {
+    return this._redis
   }
 
-  getDatabaseConnection(): Sequelize {
-    return this._sequelize
+  closeDatabaseConnection(): Promise<string> {
+    return this._redis.quit()
   }
-
-  closeDatabaseConnection(): Promise<void> {
-    return this._sequelize.close()
-  }
-
-  updateConnectionString(connectionString?: string): void {
-    connectionString ??= getConnectionString()
-    this._options = getSequelizeOptions(connectionString)
-    this._sequelize = new Sequelize(connectionString, this._options)
-  }
-}
-
-const getSequelizeOptions = (connectionString: string): Options | undefined => {
-  if (connectionString.includes('postgres://')) return { dialect: 'postgres', dialectModule: pg }
-  return undefined
-}
-
-const getConnectionString = (): string => {
-  const connectionString = env.getOrDefault('DB_CONN_STRING', '')
-  if (connectionString !== '') return connectionString
-
-  // Defaulting to Postgres connection string from env variables
-  return getPostgresConnectionString()
-}
-
-const getPostgresConnectionString = (): string => {
-  const host = env.getOrDefault('DB_HOST', 'localhost')
-  const port = env.getOrDefault('DB_PORT', '5432')
-  const user = env.getOrDefault('DB_USER', 'cloud')
-  const password = env.getOrDefault('DB_PASSWORD', 'cloud')
-  const dbname = env.getOrDefault('DB_NAME', 'Cloud')
-  return `postgres://${user}:${password}@${host}:${port}/${dbname}`
 }
 
 env.loadEnv()
