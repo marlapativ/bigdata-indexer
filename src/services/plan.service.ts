@@ -35,7 +35,7 @@ const getPlans = async (_: Request, res: Response) => {
     const keys = await redisDatabase.keys(PlanModel.key + '_' + ALL_VALUES)
     if (!keys || Object.keys(keys).length === 0) {
       res.removeHeader('ETag')
-      res.status(204).json([])
+      res.status(200).json([])
       return
     }
     const values = keys.map(async (eachKey): Promise<string | null> => {
