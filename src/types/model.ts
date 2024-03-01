@@ -1,5 +1,7 @@
+import { SchemaModel } from './schema.model'
+
 export type Model = {
-  fallbackSchema?: object
+  fallbackSchema?: SchemaModel
   schema: () => Promise<string | null>
   key: string
 }

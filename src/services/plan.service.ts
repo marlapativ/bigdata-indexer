@@ -4,6 +4,7 @@ import PlanModel from '../models/plan.model'
 import jsonParser from '../config/json.parser'
 import { Plan } from '../types/plan.model'
 import eTag from 'etag'
+import saveDataToRedis from './redis.service'
 
 const redisDatabase = database.getDatabaseConnection()
 const ALL_VALUES = '*'
@@ -15,14 +16,16 @@ const trimDoubleQuotes = (str: string) => {
 }
 
 const savePlanToRedis = async (plan: Plan, redisKey: string): Promise<[Plan, string]> => {
-  const stringifiedPlan = JSON.stringify(plan)
-  const jsonEtag = eTag(stringifiedPlan)
-  const etag = trimDoubleQuotes(jsonEtag)
-  await redisDatabase.hSet(redisKey, ROOT_CONSTANT, stringifiedPlan)
-  await redisDatabase.hSet(redisKey, ETAG_CONSTANT, etag)
-  const planFromRedis = await redisDatabase.hGet(redisKey, ROOT_CONSTANT)
-  if (!planFromRedis) throw new Error('Failed to save plan to Redis')
-  return [JSON.parse(planFromRedis), etag]
+  await saveDataToRedis(plan, PlanModel)
+  return [plan, trimDoubleQuotes(eTag(redisKey))]
+  // const stringifiedPlan = JSON.stringify(plan)
+  // const jsonEtag = eTag(stringifiedPlan)
+  // const etag = trimDoubleQuotes(jsonEtag)
+  // await redisDatabase.hSet(redisKey, ROOT_CONSTANT, stringifiedPlan)
+  // await redisDatabase.hSet(redisKey, ETAG_CONSTANT, etag)
+  // const planFromRedis = await redisDatabase.hGet(redisKey, ROOT_CONSTANT)
+  // if (!planFromRedis) throw new Error('Failed to save plan to Redis')
+  // return [JSON.parse(planFromRedis), etag]
 }
 
 const doesKeyExist = async (key: string) => {

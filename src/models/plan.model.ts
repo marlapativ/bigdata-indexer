@@ -1,7 +1,8 @@
 import database from '../config/database'
 import { Model } from '../types/model'
+import { SchemaModel } from '../types/schema.model'
 
-const PLAN_SCHEMA = {
+const PLAN_SCHEMA: SchemaModel = {
   $schema: 'http://json-schema.org/draft-07/schema#',
   title: 'Generated schema for Root',
   type: 'object',
