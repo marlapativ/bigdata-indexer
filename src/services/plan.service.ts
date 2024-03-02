@@ -1,52 +1,48 @@
 import { Request, Response } from 'express'
-import database from '../config/database'
-import PlanModel from '../models/plan.model'
-import jsonParser from '../config/json.parser'
-import { Plan } from '../types/plan.model'
 import eTag from 'etag'
-import saveDataToRedis from './redis.service'
+import RedisServiceFactory from './redis.service'
+import jsonParser from '../config/json.parser'
+import PlanModel from '../models/plan.model'
+import { Plan } from '../types/plan.model'
+import errors, { HttpStatusError } from '../utils/errors'
+import { Ok, Result } from '../utils/result'
+import { handleResponse } from '../utils/response'
 
-const redisDatabase = database.getDatabaseConnection()
-const ALL_VALUES = '*'
-const ETAG_CONSTANT = 'eTag'
-const ROOT_CONSTANT = 'ROOT'
+const redisService = RedisServiceFactory.create(PlanModel)
 
-const trimDoubleQuotes = (str: string) => {
-  return str.replace(/^"(.*)"$/, '$1')
+const generateEtag = (stringifiedPlan: string | object) => {
+  if (typeof stringifiedPlan === 'object') stringifiedPlan = JSON.stringify(stringifiedPlan)
+  const jsonEtag = eTag(stringifiedPlan)
+  const etag = jsonEtag.replace(/^"(.*)"$/, '$1')
+  return etag
 }
 
-const savePlanToRedis = async (plan: Plan, redisKey: string): Promise<[Plan, string]> => {
-  await saveDataToRedis(plan, PlanModel)
-  return [plan, trimDoubleQuotes(eTag(redisKey))]
-  // const stringifiedPlan = JSON.stringify(plan)
-  // const jsonEtag = eTag(stringifiedPlan)
-  // const etag = trimDoubleQuotes(jsonEtag)
-  // await redisDatabase.hSet(redisKey, ROOT_CONSTANT, stringifiedPlan)
-  // await redisDatabase.hSet(redisKey, ETAG_CONSTANT, etag)
-  // const planFromRedis = await redisDatabase.hGet(redisKey, ROOT_CONSTANT)
-  // if (!planFromRedis) throw new Error('Failed to save plan to Redis')
-  // return [JSON.parse(planFromRedis), etag]
-}
+const savePlanToRedis = async (
+  plan: Plan,
+  overwrite: boolean = false
+): Promise<Result<[Plan, string], HttpStatusError>> => {
+  const objectId = plan.objectId
+  if (!overwrite) {
+    const keyExists = await redisService.doesKeyExist(objectId)
+    if (keyExists) return errors.validationError('Object already exists')
+  }
 
-const doesKeyExist = async (key: string) => {
-  const exists = await redisDatabase.exists(key)
-  return exists === 1
+  const planRedisKey = await redisService.save(plan)
+  if (!planRedisKey.ok) return planRedisKey
+
+  const planFromRedis = await redisService.get(planRedisKey.value)
+  if (!planFromRedis.ok) return planFromRedis
+
+  const eTagForPlan = generateEtag(planFromRedis.value)
+  await redisService.setEtag(objectId, eTagForPlan)
+
+  const result: [Plan, string] = [planFromRedis.value, eTagForPlan]
+  return Ok(result)
 }
 
 const getPlans = async (_: Request, res: Response) => {
   try {
-    const keys = await redisDatabase.keys(PlanModel.key + '_' + ALL_VALUES)
-    if (!keys || Object.keys(keys).length === 0) {
-      res.removeHeader('ETag')
-      res.status(200).json([])
-      return
-    }
-    const values = keys.map(async (eachKey): Promise<string | null> => {
-      const val = await redisDatabase.hGet(eachKey, ROOT_CONSTANT)
-      return val === undefined ? undefined : JSON.parse(val)
-    })
-    const data = await Promise.all(values)
-    const results = data.filter((each) => each !== null)
+    const results = await redisService.getAll()
     res.removeHeader('ETag')
     res.status(200).json(results)
   } catch (error) {
@@ -63,17 +59,14 @@ const createPlan = async (req: Request, res: Response) => {
     }
     const result = await jsonParser.validate(plan, PlanModel)
     if (!result.ok) {
-      res.status(400).json({ error: 'Schema not valid.', errors: result.error.messageObject })
-      return
-    }
-    const redisKey = `${PlanModel.key}_${plan.objectId}`
-    const keyExists = await doesKeyExist(redisKey)
-    if (keyExists) {
-      res.status(400).json({ error: 'Plan already exists' })
-      return
+      return handleResponse(res, result)
     }
 
-    const [savedPlan, eTag] = await savePlanToRedis(plan, redisKey)
+    const saveResult = await savePlanToRedis(plan)
+    if (!saveResult.ok) {
+      return handleResponse(res, saveResult)
+    }
+    const [savedPlan, eTag] = saveResult.value
     res.status(201).setHeader('ETag', eTag).json(savedPlan)
   } catch (error) {
     res.status(500).json({ error: error.message })
@@ -88,31 +81,51 @@ const getPlanById = async (req: Request, res: Response) => {
       return
     }
 
-    const redisKey = `${PlanModel.key}_${objectId}`
-    const keyExists = await doesKeyExist(redisKey)
+    const keyExists = await redisService.doesKeyExist(objectId)
     if (!keyExists) {
       res.status(404).json({ error: `Object id doesn't exist` })
       return
     }
 
-    const eTag = await redisDatabase.hGet(redisKey, ETAG_CONSTANT)
+    const eTag = await redisService.getEtag(objectId)
+    if (!eTag.ok) {
+      return handleResponse(res, eTag)
+    }
 
     const etagFromHeader = req.header('If-None-Match')
-    if (etagFromHeader && etagFromHeader === eTag) {
-      res.status(304).setHeader('ETag', eTag).send()
+    if (etagFromHeader && etagFromHeader === eTag.value) {
+      res.status(304).setHeader('ETag', eTag.value).send()
       return
     }
 
-    const plan = await redisDatabase.hGet(redisKey, ROOT_CONSTANT)
-    if (!plan) throw new Error('Failed to retrieve object from Redis')
-    res.status(200).setHeader('ETag', eTag!).json(JSON.parse(plan))
+    const plan = await redisService.get(objectId)
+    return handleResponse(res, plan)
   } catch (error) {
     res.status(500).json({ error: error.message })
   }
 }
 
-const updatePlan = async () => {
-  throw new Error('Not implemented')
+const updatePlan = async (req: Request, res: Response) => {
+  try {
+    const plan = req.body as Plan
+    if (!plan) {
+      res.status(400).json({ error: 'Missing plan in body' })
+      return
+    }
+    const result = await jsonParser.validate(plan, PlanModel)
+    if (!result.ok) {
+      return handleResponse(res, result)
+    }
+
+    const saveResult = await savePlanToRedis(plan, true)
+    if (!saveResult.ok) {
+      return handleResponse(res, saveResult)
+    }
+    const [savedPlan, eTag] = saveResult.value
+    res.status(201).setHeader('ETag', eTag).json(savedPlan)
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
 }
 
 const deletePlan = async (req: Request, res: Response) => {
@@ -123,16 +136,38 @@ const deletePlan = async (req: Request, res: Response) => {
       return
     }
 
-    const redisKey = `${PlanModel.key}_${objectId}`
-    const keyExists = await doesKeyExist(redisKey)
+    const keyExists = await redisService.doesKeyExist(objectId)
     if (!keyExists) {
       res.status(404).json({ error: `Object id doesn't exist` })
       return
     }
 
-    const deleted = await redisDatabase.del(redisKey)
+    const deleted = await redisService.delete(objectId)
     if (deleted === 0) throw new Error('Failed to delete object from Redis')
     res.status(204).send()
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+}
+
+const patchPlan = async (req: Request, res: Response) => {
+  try {
+    const plan = req.body as Plan
+    if (!plan) {
+      res.status(400).json({ error: 'Missing plan in body' })
+      return
+    }
+    const result = await jsonParser.validate(plan, PlanModel)
+    if (!result.ok) {
+      return handleResponse(res, result)
+    }
+
+    const saveResult = await savePlanToRedis(plan, true)
+    if (!saveResult.ok) {
+      return handleResponse(res, saveResult)
+    }
+    const [savedPlan, eTag] = saveResult.value
+    res.status(201).setHeader('ETag', eTag).json(savedPlan)
   } catch (error) {
     res.status(500).json({ error: error.message })
   }
@@ -143,6 +178,7 @@ const planService = {
   getPlanById,
   createPlan,
   updatePlan,
+  patchPlan,
   deletePlan
 }
 
