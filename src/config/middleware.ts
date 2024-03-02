@@ -3,6 +3,9 @@ import logger from './logger'
 import errors from '../utils/errors'
 import { handleResponse } from '../utils/response'
 import healthCheckService from '../services/healthcheck.service'
+import authService from '../services/auth.service'
+
+const HEADER_KEY = 'Bearer'
 
 export const jsonErrorHandler = () => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -39,4 +42,32 @@ export const noQueryParams = () => {
     }
     next()
   }
+}
+
+export const authorized = () => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authToken = getBearerToken(req)
+      if (!authToken) return handleResponse(res, errors.unAuthorizedError())
+
+      // Google OAuth2 token verification
+      const isUserAuthorized = await authService.isUserAuthorized(authToken)
+      if (!isUserAuthorized) return handleResponse(res, errors.unAuthorizedError())
+
+      // Handle only authorized requests
+      next()
+    } catch (error) {
+      return handleResponse(res, errors.unAuthorizedError())
+    }
+  }
+}
+
+const getBearerToken = (req: Request) => {
+  if (req.headers && req.headers.authorization) {
+    const parts = req.headers.authorization.split(' ')
+    if (parts.length === 2 && parts[0] === HEADER_KEY) {
+      return parts[1]
+    }
+  }
+  return null
 }

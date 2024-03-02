@@ -10,7 +10,11 @@ const handleErrorResponse = <E extends Error>(res: Response, data: ResultError<E
 
     // Special case to handle bad request errors
     if (statusCode === StatusCodes.BAD_REQUEST && !data.error.ignoreMessage) {
-      res.status(statusCode).json({ error: data.error.message })
+      data.error
+      const message = {
+        error: data.error.messageObject
+      }
+      res.status(statusCode).json(message)
       return
     }
   }

@@ -1,7 +1,7 @@
 import { Application } from 'express'
 import healthCheckController from '../controller/healthcheck.controller'
 import nocache from 'nocache'
-import { noCachePragma } from '../config/middleware'
+import { noCachePragma, authorized } from '../config/middleware'
 import { handleResponse } from '../utils/response'
 import errors from '../utils/errors'
 import planController from '../controller/plan.controller'
@@ -10,7 +10,7 @@ const routes = (app: Application) => {
   // Health Check route
   app.use('/healthz', nocache(), noCachePragma(), healthCheckController)
 
-  app.use('/v1/plan', planController)
+  app.use('/v1/plan', authorized(), planController)
 
   // Default fallback route
   app.route('*').all((_, res) => {

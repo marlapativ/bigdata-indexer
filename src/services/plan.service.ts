@@ -2,8 +2,7 @@ import { Request, Response } from 'express'
 import eTag from 'etag'
 import RedisServiceFactory from './redis.service'
 import jsonParser from '../config/json.parser'
-import PlanModel from '../models/plan.model'
-import { Plan } from '../types/plan.model'
+import PlanModel, { Plan } from '../models/plan.model'
 import errors, { HttpStatusError } from '../utils/errors'
 import { Ok, Result } from '../utils/result'
 import { handleResponse } from '../utils/response'
@@ -19,18 +18,17 @@ const generateEtag = (stringifiedPlan: string | object) => {
 
 const savePlanToRedis = async (
   plan: Plan,
-  overwrite: boolean = false
+  isUpdate: boolean = false
 ): Promise<Result<[Plan, string], HttpStatusError>> => {
   const objectId = plan.objectId
-  if (!overwrite) {
-    const keyExists = await redisService.doesKeyExist(objectId)
-    if (keyExists) return errors.validationError('Object already exists')
-  }
+  const keyExists = await redisService.doesKeyExist(objectId)
+  if (isUpdate && !keyExists) return errors.validationError('Object does not exist')
+  else if (!isUpdate && keyExists) return errors.validationError('Object already exists')
 
   const planRedisKey = await redisService.save(plan)
   if (!planRedisKey.ok) return planRedisKey
 
-  const planFromRedis = await redisService.get(planRedisKey.value)
+  const planFromRedis = await redisService.get(objectId)
   if (!planFromRedis.ok) return planFromRedis
 
   const eTagForPlan = generateEtag(planFromRedis.value)
@@ -122,7 +120,7 @@ const updatePlan = async (req: Request, res: Response) => {
       return handleResponse(res, saveResult)
     }
     const [savedPlan, eTag] = saveResult.value
-    res.status(201).setHeader('ETag', eTag).json(savedPlan)
+    res.status(200).setHeader('ETag', eTag).json(savedPlan)
   } catch (error) {
     res.status(500).json({ error: error.message })
   }

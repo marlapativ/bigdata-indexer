@@ -22,7 +22,9 @@ const getSchema = async (model: Model): Promise<Result<SchemaModel, HttpStatusEr
 }
 
 const validate = async (json: unknown, model: Model): Promise<Result<boolean, HttpStatusError>> => {
-  const jsonSchemeObj = await getSchema(model)
+  const jsonSchemeResult = await getSchema(model)
+  if (!jsonSchemeResult.ok) return jsonSchemeResult
+  const jsonSchemeObj = jsonSchemeResult.value
   const validate = Ajv.compile(jsonSchemeObj)
   const valid = await validate(json)
   if (!valid) {

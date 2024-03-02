@@ -56,7 +56,7 @@ class RedisService implements IRedisService {
   }
 
   private _saveObjectDataToRedis = async (data: any, model: ObjectSchema): Promise<string> => {
-    const redisKey = this._getKey(data['objectId'])
+    const redisKey = `${data['objectType']}${SEPERATOR}${data['objectId']}`
     const redisValue: Record<string, any> = {}
     for (const [key, subModel] of Object.entries(model.properties)) {
       if (data.hasOwnProperty(key)) {
@@ -92,7 +92,7 @@ class RedisService implements IRedisService {
 
   get = async (objectId: string): Promise<Result<any, HttpStatusError>> => {
     const redisKey = this._getKey(objectId)
-    const isKeyExists = await this.doesKeyExist(redisKey)
+    const isKeyExists = await this._doesRedisKeyExists(redisKey)
     if (!isKeyExists) return errors.notFoundError('Key not found')
     const schema = await jsonParser.getSchema(this.model)
     if (!schema.ok) return schema
@@ -146,10 +146,12 @@ class RedisService implements IRedisService {
   }
 
   getAll = async (): Promise<string[]> => {
-    const allPlanKeys = this._getKey(ALL_VALUES)
+    const prefix = this._getKey('')
+    const allPlanKeys = `${prefix}${ALL_VALUES}`
     const keys = await this.redisDatabase.keys(allPlanKeys)
     const values = keys.map(async (eachKey): Promise<string | null> => {
-      const val = await this.get(eachKey)
+      const objectId = eachKey.replace(prefix, '')
+      const val = await this.get(objectId)
       return val.ok ? val.value : null
     })
     const data = await Promise.all(values)
