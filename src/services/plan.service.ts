@@ -1,5 +1,7 @@
 import { Request, Response } from 'express'
 import eTag from 'etag'
+import { Operation, applyPatch, validate } from 'fast-json-patch'
+
 import RedisServiceFactory from './redis.service'
 import jsonParser from '../config/json.parser'
 import PlanModel, { Plan } from '../models/plan.model'
@@ -28,7 +30,7 @@ const savePlanToRedis = async (
   const planRedisKey = await redisService.save(objectId, plan, isUpdate)
   if (!planRedisKey.ok) return planRedisKey
 
-  const planFromRedis = await redisService.get(objectId)
+  const planFromRedis = await redisService.get<Plan>(objectId)
   if (!planFromRedis.ok) return planFromRedis
 
   const eTagForPlan = generateEtag(planFromRedis.value)
@@ -171,9 +173,9 @@ const deletePlan = async (req: Request, res: Response) => {
 
 const patchPlan = async (req: Request, res: Response) => {
   try {
-    const plan = req.body as Plan
-    if (!plan) {
-      res.status(400).json({ error: 'Missing plan in body' })
+    const operations = req.body as Operation[]
+    if (!operations) {
+      res.status(400).json({ error: 'Missing operations' })
       return
     }
 
@@ -181,11 +183,6 @@ const patchPlan = async (req: Request, res: Response) => {
     if (!objectId || objectId === '' || objectId === '{}') {
       res.status(400).json({ error: 'Missing objectId' })
       return
-    }
-
-    const result = await jsonParser.validate(plan, PlanModel)
-    if (!result.ok) {
-      return handleResponse(res, result)
     }
 
     const etagFromHeader = req.header('If-Match')
@@ -204,10 +201,24 @@ const patchPlan = async (req: Request, res: Response) => {
       return
     }
 
-    const saveResult = await savePlanToRedis(plan, true)
+    const planFromRedis = await redisService.get<Plan>(objectId)
+    if (!planFromRedis.ok) {
+      handleResponse(res, planFromRedis)
+      return
+    }
+
+    const error = validate(operations, planFromRedis.value)
+    if (error) {
+      res.status(400).json({ error: error })
+      return
+    }
+
+    const patchedPlan = applyPatch(planFromRedis.value, operations, true)
+    const saveResult = await savePlanToRedis(patchedPlan.newDocument, true)
     if (!saveResult.ok) {
       return handleResponse(res, saveResult)
     }
+
     const [savedPlan, updatedETag] = saveResult.value
     res.status(200).setHeader('ETag', updatedETag).json(savedPlan)
   } catch (error) {
