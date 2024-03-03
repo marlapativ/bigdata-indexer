@@ -1,7 +1,6 @@
 import express from 'express'
 import cors from 'cors'
 import * as httpContext from 'express-http-context'
-import helmet from 'helmet'
 
 import env from './config/env'
 import routes from './routes/index'
@@ -25,7 +24,6 @@ app.use(jsonErrorHandler())
 app.use(express.urlencoded({ extended: true }))
 app.use(express.text({ type: 'text/*' }))
 app.use(cors())
-app.use(helmet.noSniff())
 
 // Setup routes
 routes(app)

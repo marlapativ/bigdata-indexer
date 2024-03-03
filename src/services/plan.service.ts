@@ -25,7 +25,7 @@ const savePlanToRedis = async (
   if (isUpdate && !keyExists) return errors.validationError('Object does not exist')
   else if (!isUpdate && keyExists) return errors.validationError('Object already exists')
 
-  const planRedisKey = await redisService.save(plan)
+  const planRedisKey = await redisService.save(objectId, plan, isUpdate)
   if (!planRedisKey.ok) return planRedisKey
 
   const planFromRedis = await redisService.get(objectId)
@@ -41,7 +41,6 @@ const savePlanToRedis = async (
 const getPlans = async (_: Request, res: Response) => {
   try {
     const results = await redisService.getAll()
-    res.removeHeader('ETag')
     res.status(200).json(results)
   } catch (error) {
     res.status(500).json({ error: error.message })
@@ -141,8 +140,7 @@ const deletePlan = async (req: Request, res: Response) => {
     }
 
     const deleted = await redisService.delete(objectId)
-    if (deleted === 0) throw new Error('Failed to delete object from Redis')
-    res.status(204).send()
+    handleResponse(res, deleted, 204)
   } catch (error) {
     res.status(500).json({ error: error.message })
   }

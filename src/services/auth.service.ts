@@ -8,7 +8,7 @@ const isUserAuthorized = async (token: string) => {
     audience: process.env.GOOGLE_CLIENT_ID
   })
   const payload = ticket.getPayload()
-  return payload?.email_verified
+  return payload?.iss?.includes('google') ?? false
 }
 
 const authService = {
