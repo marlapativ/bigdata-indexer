@@ -111,7 +111,7 @@ class RedisService implements IRedisService {
     const redisKey = this._getKey(objectId)
     const eTagRedisKey = `${ETAG_CONSTANT}${SEPERATOR}${redisKey}`
     const doesKeyExist = await this._doesRedisKeyExists(eTagRedisKey)
-    if (!doesKeyExist) return errors.notFoundError('ETag not found')
+    if (!doesKeyExist) return errors.notFoundError('ETag does not match/No ETag found')
     const value = await this.redisDatabase.get(eTagRedisKey)
     return Ok(value as string)
   }

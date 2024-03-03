@@ -8,7 +8,7 @@ planController
   .route('/:objectId')
   .get(planService.getPlanById)
   .put(planService.updatePlan)
-  .patch(planService.updatePlan)
+  .patch(planService.patchPlan)
   .delete(planService.deletePlan)
   .all((_, res) => {
     res.status(StatusCodes.METHOD_NOT_ALLOWED).send()

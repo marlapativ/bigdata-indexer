@@ -84,14 +84,14 @@ const getPlanById = async (req: Request, res: Response) => {
       return
     }
 
-    const eTag = await redisService.getEtag(objectId)
-    if (!eTag.ok) {
-      return handleResponse(res, eTag)
+    const eTagFromRedis = await redisService.getEtag(objectId)
+    if (!eTagFromRedis.ok) {
+      return handleResponse(res, eTagFromRedis)
     }
 
     const etagFromHeader = req.header('If-None-Match')
-    if (etagFromHeader && etagFromHeader === eTag.value) {
-      res.status(304).setHeader('ETag', eTag.value).send()
+    if (etagFromHeader && etagFromHeader === eTagFromRedis.value) {
+      res.status(304).setHeader('ETag', eTagFromRedis.value).send()
       return
     }
 
@@ -109,17 +109,40 @@ const updatePlan = async (req: Request, res: Response) => {
       res.status(400).json({ error: 'Missing plan in body' })
       return
     }
+
+    const { objectId } = req.params
+    if (!objectId || objectId === '' || objectId === '{}') {
+      res.status(400).json({ error: 'Missing objectId' })
+      return
+    }
+
     const result = await jsonParser.validate(plan, PlanModel)
     if (!result.ok) {
       return handleResponse(res, result)
+    }
+
+    const etagFromHeader = req.header('If-Match')
+    if (!etagFromHeader) {
+      res.status(400).json({ error: 'Missing If-Match header' })
+      return
+    }
+
+    const eTagFromRedis = await redisService.getEtag(objectId)
+    if (!eTagFromRedis.ok) {
+      return handleResponse(res, eTagFromRedis)
+    }
+
+    if (etagFromHeader !== eTagFromRedis.value) {
+      res.status(412).setHeader('ETag', eTagFromRedis.value).send({ error: 'ETag does not match' })
+      return
     }
 
     const saveResult = await savePlanToRedis(plan, true)
     if (!saveResult.ok) {
       return handleResponse(res, saveResult)
     }
-    const [savedPlan, eTag] = saveResult.value
-    res.status(200).setHeader('ETag', eTag).json(savedPlan)
+    const [savedPlan, updatedETag] = saveResult.value
+    res.status(200).setHeader('ETag', updatedETag).json(savedPlan)
   } catch (error) {
     res.status(500).json({ error: error.message })
   }
@@ -153,17 +176,40 @@ const patchPlan = async (req: Request, res: Response) => {
       res.status(400).json({ error: 'Missing plan in body' })
       return
     }
+
+    const { objectId } = req.params
+    if (!objectId || objectId === '' || objectId === '{}') {
+      res.status(400).json({ error: 'Missing objectId' })
+      return
+    }
+
     const result = await jsonParser.validate(plan, PlanModel)
     if (!result.ok) {
       return handleResponse(res, result)
+    }
+
+    const etagFromHeader = req.header('If-Match')
+    if (!etagFromHeader) {
+      res.status(400).json({ error: 'Missing If-Match header' })
+      return
+    }
+
+    const eTagFromRedis = await redisService.getEtag(objectId)
+    if (!eTagFromRedis.ok) {
+      return handleResponse(res, eTagFromRedis)
+    }
+
+    if (etagFromHeader !== eTagFromRedis.value) {
+      res.status(412).setHeader('ETag', eTagFromRedis.value).send({ error: 'ETag does not match' })
+      return
     }
 
     const saveResult = await savePlanToRedis(plan, true)
     if (!saveResult.ok) {
       return handleResponse(res, saveResult)
     }
-    const [savedPlan, eTag] = saveResult.value
-    res.status(201).setHeader('ETag', eTag).json(savedPlan)
+    const [savedPlan, updatedETag] = saveResult.value
+    res.status(200).setHeader('ETag', updatedETag).json(savedPlan)
   } catch (error) {
     res.status(500).json({ error: error.message })
   }
