@@ -36,6 +36,7 @@
     "fast-json-patch": "^3.1.1",
     "google-auth-library": "^9.6.3",
     "http-status-codes": "^2.3.0",
+    "json-merge-patch": "^1.0.2",
     "nocache": "^4.0.0",
     "redis": "^4.6.13",
     "winston": "^3.11.0"
@@ -47,6 +48,7 @@
     "@types/cors": "^2.8.17",
     "@types/etag": "^1.8.3",
     "@types/express": "^4.17.21",
+    "@types/json-merge-patch": "^0.0.10",
     "@types/mocha": "^10.0.6",
     "@types/node": "^20.11.7",
     "@typescript-eslint/eslint-plugin": "^6.19.1",
