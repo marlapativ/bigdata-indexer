@@ -20,8 +20,8 @@ type RedisGetResult = {
 export interface IRedisService {
   doesKeyExist: (objectId: string) => Promise<boolean>
   save: (objectId: string, data: any, isUpdate?: boolean) => Promise<Result<string, HttpStatusError>>
-  get: (objectId: string) => Promise<Result<any, HttpStatusError>>
-  getAll: () => Promise<any[]>
+  get: <T>(objectId: string) => Promise<Result<T, HttpStatusError>>
+  getAll: <T>() => Promise<T[]>
   delete: (objectId: string) => Promise<Result<number, HttpStatusError>>
   setEtag: (objectId: string, eTag: string) => Promise<void>
   deleteEtag: (objectId: string) => Promise<void>
@@ -71,22 +71,22 @@ class RedisService implements IRedisService {
     return Ok(result)
   }
 
-  get = async (objectId: string): Promise<Result<any, HttpStatusError>> => {
+  get = async <T>(objectId: string): Promise<Result<T, HttpStatusError>> => {
     const databaseResult = await this._getWithMetadata(objectId)
     return databaseResult.ok ? Ok(databaseResult.value.result) : databaseResult
   }
 
-  getAll = async (): Promise<string[]> => {
+  getAll = async <T>(): Promise<T[]> => {
     const prefix = this._getKey('')
     const allPlanKeys = `${prefix}${ALL_VALUES}`
     const keys = await this.redisDatabase.keys(allPlanKeys)
-    const values = keys.map(async (eachKey): Promise<string | null> => {
+    const valuePromises = keys.map(async (eachKey): Promise<T | null> => {
       const objectId = eachKey.replace(prefix, '')
-      const val = await this.get(objectId)
+      const val = await this.get<T>(objectId)
       return val.ok ? val.value : null
     })
-    const data = await Promise.all(values)
-    const results: any[] = data.filter((each) => each !== null)
+    const data = await Promise.all(valuePromises)
+    const results: T[] = data.filter(notNull)
     return results
   }
 
@@ -245,6 +245,10 @@ class RedisService implements IRedisService {
     }
     return []
   }
+}
+
+function notNull<T>(value: T | null | undefined): value is T {
+  return value !== null
 }
 
 const RedisServiceFactory = {

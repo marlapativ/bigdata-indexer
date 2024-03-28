@@ -171,3 +171,6 @@ Temporary Items
 
 # Built Visual Studio Code Extensions
 *.vsix
+
+# Redis database dump file
+*.rdb
