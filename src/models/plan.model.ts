@@ -152,7 +152,7 @@ const PLAN_SCHEMA: SchemaModel = {
 
 const PlanModel: Model = {
   fallbackSchema: PLAN_SCHEMA,
-  schema: async () => await database.getDatabaseConnection().get('PLAN_SCHEMA'),
+  schema: async () => await database.getDatabaseConnection().get('schema:plan'),
   key: 'plan'
 }
 

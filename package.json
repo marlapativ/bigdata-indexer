@@ -9,6 +9,7 @@
     "build": "npm run clean && tsc -p tsconfig.production.json",
     "postbuild": "cp package*.json dist && cd dist && npm ci --production",
     "dev": "node --no-lazy -r ts-node/register/transpile-only src/server.ts",
+    "dev:consumer": "node --no-lazy -r ts-node/register/transpile-only consumer/elastic.consumer.ts",
     "start:pm2": "pm2 delete server || : && pm2 start server.js -i 1 --name 'server'",
     "start": "NODE_ENV=production node server.js",
     "lint": "eslint ./**/*.ts",
@@ -27,6 +28,7 @@
   "license": "ISC",
   "dependencies": {
     "ajv": "^6.12.6",
+    "amqplib": "^0.10.3",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.1",
@@ -42,6 +44,7 @@
     "winston": "^3.11.0"
   },
   "devDependencies": {
+    "@types/amqplib": "^0.10.5",
     "@types/basic-auth": "^1.1.7",
     "@types/bcryptjs": "^2.4.6",
     "@types/chai": "^4.3.11",
