@@ -3,16 +3,21 @@ import { Channel, connect } from 'amqplib'
 import logger from '../config/logger'
 
 export interface IProducer {
-  produce: (message: string) => boolean
+  produce: (message: string | object) => boolean
 }
 
 export interface IConsumer {
   consume: (callback: (message: string) => void) => void
 }
 
-export type RabbitMQClientOptions = {
+type RabbitMQClientOptions = {
   url: string
   queueName: string
+}
+
+export interface IQueueService {
+  createProducerClient: () => Promise<IProducer>
+  createConsumerClient: () => Promise<IConsumer>
 }
 
 class RabbitMQBaseService {
@@ -24,7 +29,7 @@ class RabbitMQBaseService {
     this.options = options
   }
 
-  protected static async setup(options: RabbitMQClientOptions): Promise<Channel> {
+  protected static async createChannel(options: RabbitMQClientOptions): Promise<Channel> {
     const { url, queueName } = options
     const connection = await connect(url)
     const channel = await connection.createChannel()
@@ -42,7 +47,7 @@ class RabbitMQProducerService extends RabbitMQBaseService implements IProducer {
   }
 
   static async create(options: RabbitMQClientOptions): Promise<IProducer> {
-    const channel = await this.setup(options)
+    const channel = await this.createChannel(options)
     return new RabbitMQProducerService(channel, options)
   }
 }
@@ -67,31 +72,28 @@ class RabbitMQConsumerService extends RabbitMQBaseService implements IConsumer {
   }
 
   static async create(options: RabbitMQClientOptions): Promise<IConsumer> {
-    const channel = await this.setup(options)
+    const channel = await this.createChannel(options)
     return new RabbitMQConsumerService(channel, options)
   }
 }
 
-const getDefaultRabbitMQOptions = (options?: RabbitMQClientOptions): RabbitMQClientOptions => {
-  if (!options) {
-    options = {
+class RabbitMQQueueService implements IQueueService {
+  options: RabbitMQClientOptions
+  constructor(options: RabbitMQClientOptions) {
+    this.options = options
+  }
+  createProducerClient = (): Promise<IProducer> => RabbitMQProducerService.create(this.options)
+  createConsumerClient = (): Promise<IConsumer> => RabbitMQConsumerService.create(this.options)
+}
+
+const QueueServiceFactory = {
+  create: (): IQueueService => {
+    const options = {
       url: env.getOrDefault('RABBITMQ_URL', 'amqp://localhost'),
       queueName: env.getOrDefault('RABBITMQ_QUEUE_NAME', 'elastic-search-queue')
     }
+    return new RabbitMQQueueService(options)
   }
-  return options
 }
 
-const createProducerClient = async (options?: RabbitMQClientOptions): Promise<IProducer> => {
-  options = getDefaultRabbitMQOptions(options)
-  const client = await RabbitMQProducerService.create(options)
-  return client
-}
-
-const createConsumerClient = async (options?: RabbitMQClientOptions): Promise<IConsumer> => {
-  options = getDefaultRabbitMQOptions(options)
-  const client = await RabbitMQConsumerService.create(options)
-  return client
-}
-
-export { createProducerClient, createConsumerClient }
+export default QueueServiceFactory

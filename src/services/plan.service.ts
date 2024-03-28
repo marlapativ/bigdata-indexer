@@ -9,8 +9,27 @@ import PlanModel, { Plan } from '../models/plan.model'
 import errors, { HttpStatusError } from '../utils/errors'
 import { Ok, Result } from '../utils/result'
 import { handleResponse } from '../utils/response'
+import QueueServiceFactory, { IProducer } from './queue.service'
 
 const redisService = RedisServiceFactory.create(PlanModel)
+let queueProducerService: IProducer
+const getProducer = async () => {
+  if (queueProducerService) return queueProducerService
+  queueProducerService = await QueueServiceFactory.create().createProducerClient()
+  return queueProducerService
+}
+
+export enum ProducerOperationType {
+  CREATE = 'CREATE',
+  UPDATE = 'UPDATE',
+  DELETE = 'DELETE'
+}
+
+export type ProducerMessage = {
+  operation: ProducerOperationType
+  objectId: string
+  object?: Plan
+}
 
 const generateEtag = (stringifiedPlan: string | object) => {
   if (typeof stringifiedPlan === 'object') stringifiedPlan = JSON.stringify(stringifiedPlan)
@@ -39,7 +58,28 @@ const savePlanToRedis = async (
   await redisService.setEtag(objectId, eTagForPlan)
 
   const result: [Plan, string] = [planFromRedis.value, eTagForPlan]
+
+  const producer = await getProducer()
+  const message: ProducerMessage = {
+    operation: isUpdate ? ProducerOperationType.UPDATE : ProducerOperationType.CREATE,
+    objectId: objectId,
+    object: planFromRedis.value
+  }
+  producer.produce(message)
   return Ok(result)
+}
+
+const deletePlanFromRedis = async (objectId: string): Promise<Result<number, HttpStatusError>> => {
+  const result = await redisService.delete(objectId)
+  if (result.ok) {
+    const producer = await getProducer()
+    const message: ProducerMessage = {
+      operation: ProducerOperationType.DELETE,
+      objectId: objectId
+    }
+    producer.produce(message)
+  }
+  return result
 }
 
 const getPlans = async (_: Request, res: Response) => {
@@ -166,7 +206,7 @@ const deletePlan = async (req: Request, res: Response) => {
       return
     }
 
-    const deleted = await redisService.delete(objectId)
+    const deleted = await deletePlanFromRedis(objectId)
     handleResponse(res, deleted, 204)
   } catch (error) {
     res.status(500).json({ error: error.message })
