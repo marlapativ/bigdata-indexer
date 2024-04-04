@@ -29,6 +29,7 @@ class ElasticSearchService implements IElasticSearchService {
     logger.info(`Setting up index ${this.options.index} in ElasticSearch`)
     const exists = await this.client.indices.exists({ index: this.options.index })
     if (!exists) {
+      logger.info(`Creating index ${this.options.index} in ElasticSearch`)
       await this.client.indices.create({ index: this.options.index, mappings: mappings })
     }
     return true
@@ -39,7 +40,8 @@ class ElasticSearchService implements IElasticSearchService {
     const req: IndexRequest<T> = {
       index: this.options.index,
       id: objectId,
-      body: object
+      body: object,
+      routing: '1'
     }
     try {
       const response = await this.client.index<T>(req)

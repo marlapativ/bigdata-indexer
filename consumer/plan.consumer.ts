@@ -41,7 +41,11 @@ const executeElasticSearchOperation = async (data: ProducerMessage) => {
 
 const execute = async () => {
   const mappings = await elasticParser.getMappings(PlanModel)
-  const indexCreation = await elasticService.setupIndex(mappings)
+  if (!mappings.ok) {
+    logger.error(`Failed to get mappings from model`)
+    return
+  }
+  const indexCreation = await elasticService.setupIndex(mappings.value)
   if (!indexCreation) {
     logger.error(`Failed to setup index in ElasticSearch`)
     return

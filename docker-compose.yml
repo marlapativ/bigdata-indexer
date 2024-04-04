@@ -73,11 +73,12 @@ services:
       target: webapp
     ports:
       - "8080:8080"
+      - "8081:8081"
     environment:
       - PORT=8080
       - REDIS_HOST=redis
       - RABBITMQ_URL=amqp://rabbitmq
-      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - ELASTIC_SEARCH_URL=http://elasticsearch:9200
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -97,7 +98,7 @@ services:
       target: consumer
     environment:
       - RABBITMQ_URL=amqp://rabbitmq
-      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - ELASTIC_SEARCH_URL=http://elasticsearch:9200
     depends_on:
       rabbitmq:
         condition: service_healthy
