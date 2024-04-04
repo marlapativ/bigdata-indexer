@@ -1,9 +1,10 @@
 import env from '../config/env'
 import { Channel, connect } from 'amqplib'
 import logger from '../config/logger'
+import { ProducerMessage } from '../types/message'
 
 export interface IProducer {
-  produce: (message: string | object) => boolean
+  produce: (message: ProducerMessage[]) => boolean
 }
 
 export interface IConsumer {

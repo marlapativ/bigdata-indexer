@@ -150,9 +150,111 @@ const PLAN_SCHEMA: SchemaModel = {
   required: ['planCostShares', 'linkedPlanServices', '_org', 'objectId', 'objectType', 'planType', 'creationDate']
 }
 
+const PLAN_ELASTIC_MAPPINGS: object = {
+  properties: {
+    plan: {
+      properties: {
+        _org: {
+          type: 'text'
+        },
+        objectId: {
+          type: 'keyword'
+        },
+        objectType: {
+          type: 'text'
+        },
+        planType: {
+          type: 'text'
+        },
+        creationDate: {
+          type: 'date',
+          format: 'MM-dd-yyyy'
+        }
+      }
+    },
+    planCostShares: {
+      properties: {
+        copay: {
+          type: 'long'
+        },
+        deductible: {
+          type: 'long'
+        },
+        _org: {
+          type: 'text'
+        },
+        objectId: {
+          type: 'keyword'
+        },
+        objectType: {
+          type: 'text'
+        }
+      }
+    },
+    linkedPlanServices: {
+      properties: {
+        _org: {
+          type: 'text'
+        },
+        objectId: {
+          type: 'keyword'
+        },
+        objectType: {
+          type: 'text'
+        }
+      }
+    },
+    linkedService: {
+      properties: {
+        name: {
+          type: 'text'
+        },
+        _org: {
+          type: 'text'
+        },
+        objectId: {
+          type: 'keyword'
+        },
+        objectType: {
+          type: 'text'
+        }
+      }
+    },
+    planserviceCostShares: {
+      properties: {
+        copay: {
+          type: 'long'
+        },
+        deductible: {
+          type: 'long'
+        },
+        _org: {
+          type: 'text'
+        },
+        objectId: {
+          type: 'keyword'
+        },
+        objectType: {
+          type: 'text'
+        }
+      }
+    },
+    plan_join: {
+      type: 'join',
+      eager_global_ordinals: 'true',
+      relations: {
+        plan: ['planCostShares', 'linkedPlanServices'],
+        linkedPlanServices: ['linkedService', 'planserviceCostShares']
+      }
+    }
+  }
+}
+
 const PlanModel: Model = {
   fallbackSchema: PLAN_SCHEMA,
   schema: async () => await database.getDatabaseConnection().get('schema:plan'),
+  fallbackElasticMappings: PLAN_ELASTIC_MAPPINGS,
+  elasticMappings: async () => null,
   key: 'plan'
 }
 

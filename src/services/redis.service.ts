@@ -3,10 +3,12 @@ import { RedisClientType } from 'redis'
 import database from '../config/database'
 import jsonParser from '../config/json.parser'
 import { Model } from '../types/model'
-import { ArraySchema, ObjectSchema, SchemaModel, SchemaTypeEnum } from '../types/schema.model'
+import { ArraySchema, ObjectSchema, SchemaTypeEnum } from '../types/schema.model'
 import errors, { HttpStatusError } from '../utils/errors'
 import { Ok, Result } from '../utils/result'
 import { IDatabase } from '../config/database'
+import dataHandlerService from './data-handler.service'
+import validator from '../utils/validator'
 
 const SEPERATOR = ':'
 const ALL_VALUES = '*'
@@ -19,10 +21,10 @@ type RedisGetResult = {
 
 export interface IRedisService {
   doesKeyExist: (objectId: string) => Promise<boolean>
-  save: (objectId: string, data: any, isUpdate?: boolean) => Promise<Result<string, HttpStatusError>>
+  save: (objectId: string, data: any, isUpdate?: boolean) => Promise<Result<string[], HttpStatusError>>
   get: <T>(objectId: string) => Promise<Result<T, HttpStatusError>>
   getAll: <T>() => Promise<T[]>
-  delete: (objectId: string) => Promise<Result<number, HttpStatusError>>
+  delete: (objectId: string) => Promise<Result<string[], HttpStatusError>>
   setEtag: (objectId: string, eTag: string) => Promise<void>
   deleteEtag: (objectId: string) => Promise<void>
   getEtag: (objectId: string) => Promise<Result<string, HttpStatusError>>
@@ -31,7 +33,6 @@ export interface IRedisService {
 class RedisService implements IRedisService {
   redisDatabase: RedisClientType
   model: Model
-  schema: SchemaModel
 
   constructor(database: IDatabase, model: Model) {
     this.redisDatabase = database.getDatabaseConnection()
@@ -43,10 +44,7 @@ class RedisService implements IRedisService {
     return await this._doesRedisKeyExists(redisKey)
   }
 
-  save = async (objectId: string, data: any, isUpdate?: boolean): Promise<Result<string, HttpStatusError>> => {
-    const schema = await jsonParser.getSchema(this.model)
-    if (!schema.ok) return schema
-
+  save = async (objectId: string, data: any, isUpdate?: boolean): Promise<Result<string[], HttpStatusError>> => {
     let existingKeys: string[] = []
     if (isUpdate) {
       const existingData = await this._getWithMetadata(objectId)
@@ -54,21 +52,23 @@ class RedisService implements IRedisService {
       existingKeys = existingData.value.keys
     }
 
-    const metadataKeys: string[] = []
-    const schemaModel = schema.value
+    const result = await dataHandlerService.getAllKeyValuesByModel(data, this.model)
+    if (!result.ok) return result
 
-    let result: string = ''
-    if (schemaModel.type === SchemaTypeEnum.OBJECT) {
-      result = await this._saveObjectDataToRedis(data, schemaModel, metadataKeys)
-    } else if (schemaModel.type === SchemaTypeEnum.ARRAY) {
-      const arrResult = await this._saveArrayDataToRedis(data, schemaModel, metadataKeys)
-      result = arrResult.join(',')
+    const records = result.value
+    for (let i = 0; i < records.length; i++) {
+      const record = records[i]
+      if (!record) continue
+      const key = this._getKey(record.objectId, record.objectType)
+      await this.redisDatabase.set(key, JSON.stringify(record.value))
     }
 
     if (isUpdate) {
-      await this._deleteUnusedKeys(existingKeys, metadataKeys)
+      const newKeys = records.map((record) => this._getKey(record.objectId, record.objectType))
+      const existingUnusedKeys = await this._deleteUnusedKeys(existingKeys, newKeys)
+      return Ok(existingUnusedKeys)
     }
-    return Ok(result)
+    return Ok([])
   }
 
   get = async <T>(objectId: string): Promise<Result<T, HttpStatusError>> => {
@@ -86,7 +86,7 @@ class RedisService implements IRedisService {
       return val.ok ? val.value : null
     })
     const data = await Promise.all(valuePromises)
-    const results: T[] = data.filter(notNull)
+    const results: T[] = data.filter(validator.notNull)
     return results
   }
 
@@ -96,10 +96,10 @@ class RedisService implements IRedisService {
 
     const keys = objectIdRedisKeys.value.keys
     await this.deleteEtag(objectId)
-    if (keys.length === 0) return Ok(1)
+    if (keys.length === 0) return Ok([])
     const result = await this._deleteRedisKeys(keys)
     if (result === 0) return errors.internalServerError('Couldn"t delete keys from redis')
-    return Ok(result)
+    return Ok(keys)
   }
 
   setEtag = async (objectId: string, eTag: string) => {
@@ -121,8 +121,9 @@ class RedisService implements IRedisService {
     await this.redisDatabase.del(`${ETAG_CONSTANT}${SEPERATOR}${redisKey}`)
   }
 
-  private _getKey = (objectId: string) => {
-    return `${this.model.key}${SEPERATOR}${objectId}`
+  private _getKey = (objectId: string, objectType?: string) => {
+    const type = objectType ?? this.model.key
+    return `${type}${SEPERATOR}${objectId}`
   }
 
   private _doesRedisKeyExists = async (redisKey: string) => {
@@ -134,10 +135,11 @@ class RedisService implements IRedisService {
     return await this.redisDatabase.del(redisKeys)
   }
 
-  private _deleteUnusedKeys = async (existingKeys: string[], metadataKeys: string[]) => {
+  private _deleteUnusedKeys = async (existingKeys: string[], metadataKeys: string[]): Promise<string[]> => {
     const keysToDelete = existingKeys.filter((key) => !metadataKeys.includes(key))
-    if (keysToDelete.length === 0) return
+    if (keysToDelete.length === 0) return []
     await this._deleteRedisKeys(keysToDelete)
+    return keysToDelete
   }
 
   private _getWithMetadata = async (objectId: string): Promise<Result<RedisGetResult, HttpStatusError>> => {
@@ -208,47 +210,6 @@ class RedisService implements IRedisService {
     }
     return result
   }
-
-  private _saveObjectDataToRedis = async (data: any, model: ObjectSchema, metadataKeys: string[]): Promise<string> => {
-    const redisKey = `${data['objectType']}${SEPERATOR}${data['objectId']}`
-    const redisValue: Record<string, any> = {}
-    for (const [key, subModel] of Object.entries(model.properties)) {
-      if (data.hasOwnProperty(key)) {
-        if (subModel.type === SchemaTypeEnum.OBJECT) {
-          redisValue[key] = await this._saveObjectDataToRedis(data[key], subModel, metadataKeys)
-        } else if (subModel.type === SchemaTypeEnum.ARRAY) {
-          redisValue[key] = await this._saveArrayDataToRedis(data[key], subModel, metadataKeys)
-        } else {
-          redisValue[key] = data[key]
-        }
-      }
-    }
-    metadataKeys.push(redisKey)
-    await this.redisDatabase.set(redisKey, JSON.stringify(redisValue))
-    return redisKey
-  }
-
-  private _saveArrayDataToRedis = async (data: any, model: ArraySchema, metadataKeys: string[]): Promise<string[]> => {
-    const childrenType = model.items.type
-    if (childrenType === SchemaTypeEnum.OBJECT) {
-      const redisKeys: string[] = []
-      if (!Array.isArray(data)) throw new Error('Data is not an array')
-      for (let i = 0; i < data.length; i++) {
-        const value = data[i]
-        const redisKey = await this._saveObjectDataToRedis(value, model.items, metadataKeys)
-        redisKeys.push(redisKey)
-        metadataKeys.push(redisKey)
-      }
-      return redisKeys
-    } else if (childrenType === SchemaTypeEnum.ARRAY) {
-      return this._saveArrayDataToRedis(data, model.items, metadataKeys)
-    }
-    return []
-  }
-}
-
-function notNull<T>(value: T | null | undefined): value is T {
-  return value !== null
 }
 
 const RedisServiceFactory = {

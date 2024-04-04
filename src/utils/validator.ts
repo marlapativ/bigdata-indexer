@@ -14,10 +14,15 @@ const isValidEmail = (data: string) => {
   return isValidString(data) && /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(data)
 }
 
+function notNull<T>(value: T | null | undefined): value is T {
+  return value !== null
+}
+
 const validator = {
   isNullOrUndefined,
   isValidEmail,
-  isValidString
+  isValidString,
+  notNull
 }
 
 export default validator
