@@ -1,8 +1,8 @@
 import ajv from 'ajv'
 import errors, { HttpStatusError } from '../utils/errors'
-import { Err, Ok, Result } from '../utils/result'
-import { Model } from '../types/model'
-import { SchemaModel } from '../types/schema.model'
+import { Err, Ok, Result } from '../../shared/utils/result'
+import { Model } from '../../shared/types/model'
+import { SchemaModel } from '../../shared/types/schema.model'
 
 const Ajv = new ajv({
   allErrors: true,

@@ -2,9 +2,9 @@
 import { ruruHTML } from 'ruru/server'
 import express from 'express'
 import cors from 'cors'
-import logger from '../src/config/logger'
-import database from '../src/config/database'
-import env from '../src/config/env'
+import logger from '../shared/config/logger'
+import database from '../shared/config/database'
+import env from '../shared/config/env'
 import { createHandler } from 'graphql-http/lib/use/express'
 import schemas from './models'
 

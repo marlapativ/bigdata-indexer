@@ -1,5 +1,5 @@
-import database from '../config/database'
-import logger from '../config/logger'
+import database from '../../shared/config/database'
+import logger from '../../shared/config/logger'
 
 interface IHealthCheckService {
   databaseHealthCheck(): Promise<boolean>

@@ -1,10 +1,10 @@
-import env from '../src/config/env'
-import ElasticSearchServiceFactory from '../src/services/elastic.service'
-import QueueServiceFactory from '../src/services/queue.service'
-import logger from '../src/config/logger'
-import { DataRecord, ProducerMessage, ProducerOperationType } from '../src/types/message'
-import elasticParser from '../src/config/elastic.parser'
-import PlanModel from '../src/models/plan.model'
+import env from '../shared/config/env'
+import ElasticSearchServiceFactory from '../shared/services/elastic.service'
+import QueueServiceFactory from '../shared/services/queue.service'
+import logger from '../shared/config/logger'
+import { DataRecord, ProducerMessage, ProducerOperationType } from '../shared/types/message'
+import elasticParser from '../shared/config/elastic.parser'
+import PlanModel from '../shared/models/plan.model'
 
 // Setup .env file
 env.loadEnv()

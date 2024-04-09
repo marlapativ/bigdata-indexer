@@ -5,15 +5,15 @@ import jsonmergepatch from 'json-merge-patch'
 
 import RedisServiceFactory from './redis.service'
 import jsonParser from '../config/json.parser'
-import PlanModel, { Plan } from '../models/plan.model'
+import PlanModel, { Plan } from '../../shared/models/plan.model'
 import errors, { HttpStatusError } from '../utils/errors'
-import { Ok, Result } from '../utils/result'
+import { Ok, Result } from '../../shared/utils/result'
 import { handleResponse } from '../utils/response'
-import QueueServiceFactory, { IProducer } from './queue.service'
-import { ProducerMessage, ProducerOperationType } from '../types/message'
+import QueueServiceFactory, { IProducer } from '../../shared/services/queue.service'
+import { ProducerMessage, ProducerOperationType } from '../../shared/types/message'
 import dataHandlerService from './data-handler.service'
-import validator from '../utils/validator'
-import logger from '../config/logger'
+import validator from '../../shared/utils/validator'
+import logger from '../../shared/config/logger'
 
 const redisService = RedisServiceFactory.create(PlanModel)
 let queueProducerService: IProducer
