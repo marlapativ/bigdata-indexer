@@ -65,12 +65,8 @@ services:
       - webapp
   
   webapp:
-    container_name: webapp
+    image: marlapativ/plan-app-server:1.0.0
     hostname: webapp
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: webapp
     ports:
       - "8080:8080"
       - "8081:8081"
@@ -92,12 +88,8 @@ services:
       - webapp
   
   consumer:
-    container_name: consumer
+    image: marlapativ/plan-app-consumer:1.0.0
     hostname: consumer
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: consumer
     environment:
       - RABBITMQ_URL=amqp://rabbitmq
       - ELASTIC_SEARCH_URL=http://elasticsearch:9200
