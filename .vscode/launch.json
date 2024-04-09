@@ -44,6 +44,27 @@
             ]
         },
         {
+            "name": "Debug GraphQL Server",
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "node",
+            "runtimeArgs": [
+                "--nolazy",
+                "-r",
+                "ts-node/register/transpile-only"
+            ],
+            "args": [
+                "graphql/graphql-server.ts",
+            ],
+            "cwd": "${workspaceRoot}",
+            "internalConsoleOptions": "openOnSessionStart",
+            "outputCapture": "std",
+            "skipFiles": [
+                "<node_internals>/**",
+                "node_modules/**"
+            ]
+        },
+        {
             "name": "Mocha (Test single file)",
             "type": "node",
             "request": "launch",

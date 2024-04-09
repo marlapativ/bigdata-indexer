@@ -57,7 +57,7 @@ services:
     ports:
       - "5601:5601"
     environment:
-      - ELASTICSEARCH_URL=http://localhost:9200
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
     depends_on:
       elasticsearch:
           condition: service_healthy
@@ -74,8 +74,10 @@ services:
     ports:
       - "8080:8080"
       - "8081:8081"
+      - "4000:4000"
     environment:
       - PORT=8080
+      - PORT_GRAPHQL=4000
       - REDIS_HOST=redis
       - RABBITMQ_URL=amqp://rabbitmq
       - ELASTIC_SEARCH_URL=http://elasticsearch:9200

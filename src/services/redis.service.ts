@@ -9,10 +9,9 @@ import { Ok, Result } from '../utils/result'
 import { IDatabase } from '../config/database'
 import dataHandlerService from './data-handler.service'
 import validator from '../utils/validator'
+import keyUtils from '../utils/key-utils'
 
-const SEPERATOR = ':'
 const ALL_VALUES = '*'
-const ETAG_CONSTANT = 'eTag'
 
 type RedisGetResult = {
   result: any
@@ -103,13 +102,14 @@ class RedisService implements IRedisService {
   }
 
   setEtag = async (objectId: string, eTag: string) => {
-    const redisKey = this._getKey(objectId)
-    await this.redisDatabase.set(`${ETAG_CONSTANT}${SEPERATOR}${redisKey}`, eTag)
+    const key = this._getKey(objectId)
+    const redisKey = keyUtils.getEtagKey(key)
+    await this.redisDatabase.set(redisKey, eTag)
   }
 
   getEtag = async (objectId: string) => {
     const redisKey = this._getKey(objectId)
-    const eTagRedisKey = `${ETAG_CONSTANT}${SEPERATOR}${redisKey}`
+    const eTagRedisKey = keyUtils.getEtagKey(redisKey)
     const doesKeyExist = await this._doesRedisKeyExists(eTagRedisKey)
     if (!doesKeyExist) return errors.notFoundError('ETag does not match/No ETag found')
     const value = await this.redisDatabase.get(eTagRedisKey)
@@ -117,13 +117,14 @@ class RedisService implements IRedisService {
   }
 
   deleteEtag = async (objectId: string) => {
-    const redisKey = this._getKey(objectId)
-    await this.redisDatabase.del(`${ETAG_CONSTANT}${SEPERATOR}${redisKey}`)
+    const key = this._getKey(objectId)
+    const redisKey = keyUtils.getEtagKey(key)
+    await this.redisDatabase.del(redisKey)
   }
 
   private _getKey = (objectId: string, objectType?: string) => {
     const type = objectType ?? this.model.key
-    return `${type}${SEPERATOR}${objectId}`
+    return keyUtils.getKey(objectId, type)
   }
 
   private _doesRedisKeyExists = async (redisKey: string) => {

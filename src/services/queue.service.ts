@@ -14,6 +14,7 @@ export interface IConsumer {
 type RabbitMQClientOptions = {
   url: string
   queueName: string
+  connectionTimeout: number
 }
 
 export interface IQueueService {
@@ -31,8 +32,8 @@ class RabbitMQBaseService {
   }
 
   protected static async createChannel(options: RabbitMQClientOptions): Promise<Channel> {
-    const { url, queueName } = options
-    const connection = await connect(url)
+    const { url, queueName, connectionTimeout } = options
+    const connection = await connect(url, { timeout: connectionTimeout })
     const channel = await connection.createChannel()
     channel.assertQueue(queueName)
     return channel
@@ -91,7 +92,8 @@ const QueueServiceFactory = {
   create: (): IQueueService => {
     const options = {
       url: env.getOrDefault('RABBITMQ_URL', 'amqp://localhost'),
-      queueName: env.getOrDefault('RABBITMQ_QUEUE_NAME', 'elastic-search-queue')
+      queueName: env.getOrDefault('RABBITMQ_QUEUE_NAME', 'elastic-search-queue'),
+      connectionTimeout: parseInt(env.getOrDefault('RABBITMQ_CONNECTION_TIMEOUT', '2000'))
     }
     return new RabbitMQQueueService(options)
   }

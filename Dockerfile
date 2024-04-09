@@ -14,6 +14,7 @@ ENV PORT=8080
 CMD ["npm", "start"]
 EXPOSE 8080
 EXPOSE 8081
+EXPOSE 4000
 
 FROM build AS consumer
 WORKDIR /usr/src/app/dist

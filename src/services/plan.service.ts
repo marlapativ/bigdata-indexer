@@ -13,12 +13,17 @@ import QueueServiceFactory, { IProducer } from './queue.service'
 import { ProducerMessage, ProducerOperationType } from '../types/message'
 import dataHandlerService from './data-handler.service'
 import validator from '../utils/validator'
+import logger from '../config/logger'
 
 const redisService = RedisServiceFactory.create(PlanModel)
 let queueProducerService: IProducer
-const getProducer = async () => {
+const getProducer = async (): Promise<IProducer | null> => {
   if (queueProducerService) return queueProducerService
-  queueProducerService = await QueueServiceFactory.create().createProducerClient()
+  try {
+    queueProducerService = await QueueServiceFactory.create().createProducerClient()
+  } catch (error) {
+    logger.error('Error creating queue producer client' + error.message)
+  }
   return queueProducerService
 }
 
@@ -66,7 +71,7 @@ const savePlanToRedis = async (
       object: records.value
     }
   ]
-  producer.produce(message)
+  producer?.produce(message)
 
   const result: [Plan, string] = [planFromRedis.value, eTagForPlan]
   return Ok(result)
@@ -88,7 +93,7 @@ const deletePlanFromRedis = async (objectId: string): Promise<Result<string[], H
           .filter(validator.notNull)
       }
     ]
-    producer.produce(message)
+    producer?.produce(message)
   }
   return Ok([])
 }
