@@ -5,8 +5,7 @@ import { Model } from '../../shared/types/model'
 import { SchemaModel } from '../../shared/types/schema.model'
 
 const Ajv = new ajv({
-  allErrors: true,
-  async: true
+  allErrors: true
 })
 
 const getSchema = async (model: Model): Promise<Result<SchemaModel, HttpStatusError>> => {
@@ -26,7 +25,7 @@ const validate = async (json: unknown, model: Model): Promise<Result<boolean, Ht
   if (!jsonSchemeResult.ok) return jsonSchemeResult
   const jsonSchemeObj = jsonSchemeResult.value
   const validate = Ajv.compile(jsonSchemeObj)
-  const valid = await validate(json)
+  const valid = validate(json)
   if (!valid) {
     return Err(errors.validationError(validate.errors))
   }
