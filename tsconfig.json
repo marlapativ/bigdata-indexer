@@ -6,7 +6,7 @@
             "ESNext",
             "dom"
         ],
-        "outDir": "./build",
+        "outDir": "./dist",
         "removeComments": true,
         "target": "ES6",
         "baseUrl": "./",
@@ -25,6 +25,7 @@
         "noUnusedLocals": true,
         "forceConsistentCasingInFileNames": true,
         "noUnusedParameters": true,
+        "skipLibCheck": true
     },
     "include": [
         "./**/*.ts"
