@@ -63,7 +63,7 @@ services:
       - webapp
   
   webapp:
-    image: marlapativ/plan-app-server:1.0.0
+    image: marlapativ/plan-app-server:1.0.1
     hostname: webapp
     ports:
       - "8080:8080"
