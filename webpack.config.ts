@@ -19,12 +19,16 @@ const config: webpack.Configuration = {
   mode: isDev ? 'development' : 'production',
   devtool: isDev ? 'inline-source-map' : 'source-map',
   target: 'node',
-  entry: './webapp/server.ts',
+  entry: {
+    webapp: './webapp/server.ts',
+    consumer: './consumer/plan.consumer.ts',
+    graphql: './graphql/graphql-server.ts'
+  },
   output: {
     clean: true,
     publicPath: 'dist/',
     path: path.resolve(process.cwd(), 'dist'),
-    filename: 'webapp.js'
+    filename: '[name].js'
   },
   optimization: {
     minimizer: [new TerserPlugin({ terserOptions: { compress: { drop_console: true } } })]
