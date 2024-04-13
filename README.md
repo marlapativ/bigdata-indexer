@@ -17,6 +17,7 @@ Adv Big Data Indexing Techniques Web API Implementation
 | Kibana             | 5601  | Yes | <http://localhost:5601>  |
 | GraphQL            | 4000  | Yes | <http://localhost:4000>  |
 | Redis Dashboard    | 8081  | Yes | <http://localhost:8081>  |
+| Redis              | 6379  | No  | localhost:6379           |
 | RabbitMQ           | 5672  | No  | localhost:5672           |
 | Elasticsearch      | 9200  | No  | localhost:9200           |
 
