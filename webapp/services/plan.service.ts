@@ -5,15 +5,15 @@ import jsonmergepatch from 'json-merge-patch'
 
 import RedisServiceFactory from './redis.service'
 import jsonParser from '../config/json.parser'
-import PlanModel, { Plan } from '../models/plan.model'
+import PlanModel, { Plan } from '../../shared/models/plan.model'
 import errors, { HttpStatusError } from '../utils/errors'
-import { Ok, Result } from '../utils/result'
+import { Ok, Result } from '../../shared/utils/result'
 import { handleResponse } from '../utils/response'
-import QueueServiceFactory, { IProducer } from './queue.service'
-import { ProducerMessage, ProducerOperationType } from '../types/message'
+import QueueServiceFactory, { IProducer } from '../../shared/services/queue.service'
+import { ProducerMessage, ProducerOperationType } from '../../shared/types/message'
 import dataHandlerService from './data-handler.service'
-import validator from '../utils/validator'
-import logger from '../config/logger'
+import validator from '../../shared/utils/validator'
+import logger from '../../shared/config/logger'
 
 const redisService = RedisServiceFactory.create(PlanModel)
 let queueProducerService: IProducer
@@ -36,12 +36,22 @@ const generateEtag = (stringifiedPlan: string | object) => {
 
 const savePlanToRedis = async (
   plan: Plan,
-  isUpdate: boolean = false
+  isUpdate: boolean = false,
+  ignoreKeyExists: boolean = false
 ): Promise<Result<[Plan, string], HttpStatusError>> => {
+  const isOverride = isUpdate && ignoreKeyExists
+
   const objectId = plan.objectId
+
   const keyExists = await redisService.doesKeyExist(objectId)
   if (isUpdate && !keyExists) return errors.validationError('Object does not exist')
   else if (!isUpdate && keyExists) return errors.validationError('Object already exists')
+
+  const deleteProducerMessage: ProducerMessage[] = []
+  if (isOverride) {
+    const result = await redisService.delete(objectId)
+    if (result.ok) deleteProducerMessage.push(getDeletedKeysProducerMessage(result.value))
+  }
 
   // Temporarily disabling the unused cache key deletion.
   // const unusedKeys = await redisService.save(objectId, plan, true)
@@ -71,29 +81,38 @@ const savePlanToRedis = async (
       object: records.value
     }
   ]
+
+  if (isOverride && deleteProducerMessage.length > 0) {
+    const deleteMessage = deleteProducerMessage[0] as ProducerMessage
+    message.unshift(deleteMessage)
+  }
+
   producer?.produce(message)
 
   const result: [Plan, string] = [planFromRedis.value, eTagForPlan]
   return Ok(result)
 }
 
+const getDeletedKeysProducerMessage = (value: string[]): ProducerMessage => {
+  const message: ProducerMessage = {
+    operation: ProducerOperationType.DELETE,
+    object: [...new Set(value)]
+      .map((key) => {
+        const [objectType, objectId] = key.split(':')
+        if (objectId && objectType) return { objectId, objectType, value: null }
+        return null
+      })
+      .filter(validator.notNull)
+  }
+  return message
+}
+
 const deletePlanFromRedis = async (objectId: string): Promise<Result<string[], HttpStatusError>> => {
   const result = await redisService.delete(objectId)
   if (result.ok) {
     const producer = await getProducer()
-    const message: ProducerMessage[] = [
-      {
-        operation: ProducerOperationType.DELETE,
-        object: [...new Set(result.value)]
-          .map((key) => {
-            const [objectType, objectId] = key.split(':')
-            if (objectId && objectType) return { objectId, objectType, value: null }
-            return null
-          })
-          .filter(validator.notNull)
-      }
-    ]
-    producer?.produce(message)
+    const message = getDeletedKeysProducerMessage(result.value)
+    producer?.produce([message])
   }
   return Ok([])
 }
@@ -149,9 +168,12 @@ const getPlanById = async (req: Request, res: Response) => {
       return handleResponse(res, eTagFromRedis)
     }
 
+    // Setting Etag
+    res.setHeader('ETag', eTagFromRedis.value)
+
     const etagFromHeader = req.header('If-None-Match')
     if (etagFromHeader && etagFromHeader === eTagFromRedis.value) {
-      res.status(304).setHeader('ETag', eTagFromRedis.value).send()
+      res.status(304).send()
       return
     }
 
@@ -197,7 +219,7 @@ const updatePlan = async (req: Request, res: Response) => {
       return
     }
 
-    const saveResult = await savePlanToRedis(plan, true)
+    const saveResult = await savePlanToRedis(plan, true, true)
     if (!saveResult.ok) {
       return handleResponse(res, saveResult)
     }

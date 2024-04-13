@@ -1,6 +1,6 @@
-import database from '../../src/config/database'
-import keyUtils from '../../src/utils/key-utils'
-import validator from '../../src/utils/validator'
+import database from '../../shared/config/database'
+import keyUtils from '../../shared/utils/key-utils'
+import validator from '../../shared/utils/validator'
 
 const redisDatabase = database.getDatabaseConnection()
 

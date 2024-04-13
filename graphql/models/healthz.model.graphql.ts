@@ -1,5 +1,5 @@
 import { GraphQLError, GraphQLObjectType, GraphQLString } from 'graphql'
-import database from '../../src/config/database'
+import database from '../../shared/config/database'
 
 const HealthzQueryRoot = new GraphQLObjectType({
   name: 'HealthzQueryRoot',

@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import jsonParser from '../config/json.parser'
-import { DataRecord, DataRecordParent } from '../types/message'
-import { Model } from '../types/model'
-import { SchemaTypeEnum, ObjectSchema, ArraySchema, SchemaModel } from '../types/schema.model'
+import { DataRecord, DataRecordParent } from '../../shared/types/message'
+import { Model } from '../../shared/types/model'
+import { SchemaTypeEnum, ObjectSchema, ArraySchema, SchemaModel } from '../../shared/types/schema.model'
 import { HttpStatusError } from '../utils/errors'
-import { Ok, Result } from '../utils/result'
+import { Ok, Result } from '../../shared/utils/result'
 
 const SEPERATOR = ':'
 

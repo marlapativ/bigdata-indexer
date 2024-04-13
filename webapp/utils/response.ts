@@ -1,6 +1,6 @@
 import { StatusCodes } from 'http-status-codes'
 import { HttpStatusError } from './errors'
-import { Result, ResultError } from './result'
+import { Result, ResultError } from '../../shared/utils/result'
 import { Response } from 'express'
 
 const handleErrorResponse = <E extends Error>(res: Response, data: ResultError<E>) => {

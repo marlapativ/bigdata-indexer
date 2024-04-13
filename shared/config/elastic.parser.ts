@@ -1,6 +1,5 @@
 import { DataRecord } from '../types/message'
 import { Model } from '../types/model'
-import errors, { HttpStatusError } from '../utils/errors'
 import { Err, Ok, Result } from '../utils/result'
 
 export type ElasticJoinObject = {
@@ -8,11 +7,10 @@ export type ElasticJoinObject = {
   object: Record<string, unknown>
 }
 
-const getMappings = async (model: Model): Promise<Result<object, HttpStatusError>> => {
+const getMappings = async (model: Model): Promise<Result<object, Error>> => {
   const elasticMappings = await model.elasticMappings()
   if (!elasticMappings) {
-    if (!model.fallbackElasticMappings)
-      return Err(errors.validationError('Elastic mappings not found for model: ' + model.key))
+    if (!model.fallbackElasticMappings) return Err(new Error('Elastic mappings not found for model: ' + model.key))
     return Ok(model.fallbackElasticMappings)
   } else {
     return Ok(JSON.parse(elasticMappings))

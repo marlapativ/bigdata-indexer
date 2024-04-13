@@ -1,7 +1,7 @@
 import { GraphQLObjectType, GraphQLID, GraphQLString, GraphQLList, GraphQLFloat } from 'graphql'
-import PlanModel from '../../src/models/plan.model'
+import PlanModel from '../../shared/models/plan.model'
 import redisGraphQLService from '../services/redis.graphql.service'
-import keyUtils from '../../src/utils/key-utils'
+import keyUtils from '../../shared/utils/key-utils'
 
 const PlanType = new GraphQLObjectType({
   name: 'plan',

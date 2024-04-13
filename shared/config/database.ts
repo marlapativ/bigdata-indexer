@@ -15,7 +15,8 @@ class Database implements IDatabase {
     this._redis = createClient({
       socket: {
         host: env.getOrDefault('REDIS_HOST', 'localhost'),
-        port: parseInt(env.getOrDefault('REDIS_PORT', '6379'))
+        port: parseInt(env.getOrDefault('REDIS_PORT', '6379')),
+        reconnectStrategy: 5000
       },
       pingInterval: 2000
     })

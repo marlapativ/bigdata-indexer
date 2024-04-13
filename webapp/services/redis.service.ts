@@ -1,15 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { RedisClientType } from 'redis'
-import database from '../config/database'
+import database from '../../shared/config/database'
 import jsonParser from '../config/json.parser'
-import { Model } from '../types/model'
-import { ArraySchema, ObjectSchema, SchemaTypeEnum } from '../types/schema.model'
+import { Model } from '../../shared/types/model'
+import { ArraySchema, ObjectSchema, SchemaTypeEnum } from '../../shared/types/schema.model'
 import errors, { HttpStatusError } from '../utils/errors'
-import { Ok, Result } from '../utils/result'
-import { IDatabase } from '../config/database'
+import { Ok, Result } from '../../shared/utils/result'
+import { IDatabase } from '../../shared/config/database'
 import dataHandlerService from './data-handler.service'
-import validator from '../utils/validator'
-import keyUtils from '../utils/key-utils'
+import validator from '../../shared/utils/validator'
+import keyUtils from '../../shared/utils/key-utils'
 
 const ALL_VALUES = '*'
 

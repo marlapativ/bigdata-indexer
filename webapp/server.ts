@@ -2,10 +2,10 @@ import express from 'express'
 import cors from 'cors'
 import * as httpContext from 'express-http-context'
 
-import env from './config/env'
+import env from '../shared/config/env'
 import routes from './routes/index'
-import logger from './config/logger'
-import database from './config/database'
+import logger from '../shared/config/logger'
+import database from '../shared/config/database'
 import { jsonErrorHandler } from './config/middleware'
 
 // Setup .env file

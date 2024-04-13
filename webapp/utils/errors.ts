@@ -1,5 +1,5 @@
 import { StatusCodes } from 'http-status-codes'
-import { ResultError } from './result'
+import { ResultError } from '../../shared/utils/result'
 
 export class HttpStatusError extends Error implements ResultError<HttpStatusError> {
   statusCode: number
