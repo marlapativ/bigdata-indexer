@@ -63,7 +63,7 @@ services:
       - webapp
   
   webapp:
-    image: marlapativ/plan-app-server:1.0.1
+    image: marlapativ/plan-app-server:1.0.2
     hostname: webapp
     ports:
       - "8080:8080"
@@ -86,7 +86,7 @@ services:
       - webapp
   
   consumer:
-    image: marlapativ/plan-app-consumer:1.0.0
+    image: marlapativ/plan-app-consumer:1.0.1
     hostname: consumer
     environment:
       - RABBITMQ_URL=amqp://rabbitmq
