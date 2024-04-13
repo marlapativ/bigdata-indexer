@@ -4,6 +4,24 @@ Adv Big Data Indexing Techniques Web API Implementation
 
 ---
 
+## Architecture Diagram
+
+![Architecture Diagram](./architecture.png)
+
+## Docker Compose URLs
+
+| Service            | Port  | UI  | Default URL              |
+| ------------------ | ----- | --- | ------------------------ |
+| Web Server         | 8080  | Yes | <http://localhost:8080>  |
+| RabbitMQ Dashboard | 15672 | Yes | <http://localhost:15672> |
+| Kibana             | 5601  | Yes | <http://localhost:5601>  |
+| GraphQL            | 4000  | Yes | <http://localhost:4000>  |
+| Redis Dashboard    | 8081  | Yes | <http://localhost:8081>  |
+| RabbitMQ           | 5672  | No  | localhost:5672           |
+| Elasticsearch      | 9200  | No  | localhost:9200           |
+
+---
+
 ## Requirements
 
 For development, you will only need Node.js and a node global package, npm, installed in your environement.
