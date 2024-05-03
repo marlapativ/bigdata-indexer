@@ -1,6 +1,6 @@
-# INFO-7255 Adv Big Data Indexing Techniques
+# Big Data Indexing
 
-Adv Big Data Indexing Techniques Web API Implementation
+Web API Implementation of the project to index data to elastic search with redis as a caching layer
 
 ---
 
